@@ -19,7 +19,7 @@ module Dropbox
     # @return [void]
     def revoke_token
       r = HTTP.auth('Bearer ' + @access_token).post(API + '/auth/token/revoke')
-      raise ApiError.new(r) if r.code != 200
+      raise_error(r) if r.code != 200
     end
 
     # Copy a file or folder to a different location in the user's Dropbox.
@@ -58,6 +58,7 @@ module Dropbox
     # @param [String] path
     # @return [Dropbox::FolderMetadata]
     def create_folder(path)
+      return if path == '/'
       resp = request('/files/create_folder', path: path)
       FolderMetadata.new(resp)
     end
@@ -248,7 +249,7 @@ module Dropbox
     # @return [Dropbox::UploadSessionCursor] cursor
     def start_upload_session(body, close=false)
       resp = upload_request('/files/upload_session/start', body, close: close)
-      UploadSessionCursor.new(resp['session_id'], body.length)
+      UploadSessionCursor.new(resp['session_id'], body.bytesize)
     end
 
     # Append more data to an upload session.
@@ -260,7 +261,7 @@ module Dropbox
     def append_upload_session(cursor, body, close=false)
       args = {cursor: cursor.to_h, close: close}
       resp = upload_request('/files/upload_session/append_v2', body, args)
-      cursor.offset += body.length
+      cursor.offset += body.bytesize
       cursor
     end
 
@@ -346,7 +347,7 @@ module Dropbox
           .headers(content_type: ('application/json' if data))
           .post(url, json: data)
 
-        raise ApiError.new(resp) if resp.code != 200
+        raise_error(resp) if resp.code != 200
         JSON.parse(resp.to_s)
       end
 
@@ -355,7 +356,7 @@ module Dropbox
         resp = HTTP.auth('Bearer ' + @access_token)
           .headers('Dropbox-API-Arg' => args.to_json).get(url)
 
-        raise ApiError.new(resp) if resp.code != 200
+        raise_error(resp) if resp.code != 200
         file = JSON.parse(resp.headers['Dropbox-API-Result'])
         return file, resp.body
       end
@@ -367,8 +368,24 @@ module Dropbox
           'Transfer-Encoding' => ('chunked' unless body.is_a?(String))
         }).post(CONTENT_API + action, body: body)
 
-        raise ApiError.new(resp) if resp.code != 200
+        raise_error(resp) if resp.code != 200
         JSON.parse(resp.to_s) unless resp.to_s == 'null'
+      end
+
+      def raise_error(resp)
+        if resp.content_type.mime_type == 'application/json'
+          error_message = JSON.parse(resp)
+
+          error_module = error_message['error_summary']
+
+          error_class = '::Dropbox::'
+          error_class << error_message['error_summary'].sub(/\/\.*$/, '').gsub('/', '_').camelize
+          error_class << 'Error'
+
+          raise error_class.constantize.new(resp) if Object.const_defined?(error_class)
+        end
+
+        raise ApiError.new(resp)
       end
   end
 end

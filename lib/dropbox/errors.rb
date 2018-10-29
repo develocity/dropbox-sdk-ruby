@@ -28,7 +28,11 @@ module Dropbox
 
     def initialize(response)
       if response.content_type.mime_type == 'application/json'
-        @message = JSON.parse(response)['error_summary']
+        begin
+          @message = "#{response.code}: #{JSON.parse(response)['error_summary']}"
+        rescue JSON::ParserError # Dropbox API happily sends broken JSON quite regularly *grumble*
+          @message = "#{response.code}: (Invalid JSON -_-) #{response}"
+        end
       else
         @message = response
       end
@@ -38,4 +42,15 @@ module Dropbox
       @message.to_s
     end
   end
+
+  class BadPathAlreadySharedError < ApiError; end
+  class BadPathContainsSharedFolderError < ApiError; end
+  class FromLookupMalformedPathError < ApiError; end
+  class FromLookupNotFoundError < ApiError; end
+  class MemberErrorNotAMemberError < ApiError; end
+  class PathConflictFolderError < ApiError; end
+  class PathLookupNotFoundError < ApiError; end
+  class PathNotFoundError < ApiError; end
+  class ToMalformedPathError < ApiError; end
+  class TooManyWriteOperationsError < ApiError; end
 end
