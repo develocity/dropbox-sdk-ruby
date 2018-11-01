@@ -49,6 +49,7 @@ module Dropbox
   class FromLookupNotFoundError < ApiError; end
   class MemberErrorNotAMemberError < ApiError; end
   class PathConflictFolderError < ApiError; end
+  class PathDisallowedNameError < ApiError; end
   class PathLookupNotFoundError < ApiError; end
   class PathNotFoundError < ApiError; end
   class ToMalformedPathError < ApiError; end
