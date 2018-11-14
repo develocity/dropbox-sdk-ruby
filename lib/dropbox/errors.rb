@@ -45,6 +45,7 @@ module Dropbox
 
   class BadPathAlreadySharedError < ApiError; end
   class BadPathContainsSharedFolderError < ApiError; end
+  class FolderOwnerError < ApiError; end
   class FromLookupMalformedPathError < ApiError; end
   class FromLookupNotFoundError < ApiError; end
   class MemberErrorNotAMemberError < ApiError; end
